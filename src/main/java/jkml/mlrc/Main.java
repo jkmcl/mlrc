@@ -19,14 +19,14 @@ public class Main {
 
 	public static void printHelp() {
 		System.out.println("Usage: " + Main.class.getName() + " list REPO_DIR");
-		System.out.println("       " + Main.class.getName() + " delete n REPO_DIR");
+		System.out.println("       " + Main.class.getName() + " purge n REPO_DIR");
 	}
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String... args) throws Exception {
 		if (args.length > 1 && args[0].equals("list")) {
 			new Main().list(Path.of(args[1]));
-		} else if (args.length > 2 && args[0].equals("delete")) {
-			new Main().delete(Path.of(args[2]), Integer.parseInt(args[1]));
+		} else if (args.length > 2 && args[0].equals("purge") && Integer.parseInt(args[1]) > 0) {
+			new Main().purge(Path.of(args[2]), Integer.parseInt(args[1]));
 		} else {
 			printHelp();
 		}
@@ -62,9 +62,9 @@ public class Main {
 	}
 
 	/**
-	 * Keeping only most recent N version of each artifact
+	 * Purge old versions of each artifact, keeping only the most recent N version
 	 */
-	public void delete(Path repoDir, int numberToKeep) throws IOException {
+	public void purge(Path repoDir, int numberToKeep) throws IOException {
 		logger.info("Deleting older artifacts in repository directory: {}", repoDir);
 
 		var count = 0;
@@ -73,13 +73,13 @@ public class Main {
 			for (var artifactVersions : groupArtifacts.getValue().entrySet()) {
 				var artifactId = artifactVersions.getKey();
 				var versions = artifactVersions.getValue();
-				count += delete(repoDir, numberToKeep, groupId, artifactId, versions);
+				count += purge(repoDir, numberToKeep, groupId, artifactId, versions);
 			}
 		}
 		logger.info("Delete count: {}", count);
 	}
 
-	private int delete(Path repoDir, int numberToKeep, String groupId, String artifactId, SortedSet<ComparableVersion> versions) {
+	private int purge(Path repoDir, int numberToKeep, String groupId, String artifactId, SortedSet<ComparableVersion> versions) {
 		var totalNumber = versions.size();
 		if (totalNumber <= numberToKeep) {
 			return 0;
@@ -90,22 +90,23 @@ public class Main {
 		var numberToDelete = totalNumber - numberToKeep;
 		for (var version : versions) {
 			if (index++ < numberToDelete) {
-				count += delete(repoDir, new Coordinate(groupId, artifactId, version.toString()));
+				count += delete(repoDir, groupId, artifactId, version.toString());
 			}
 		}
 
 		return count;
 	}
 
-	private int delete(Path repoDir, Coordinate coordinate) {
-		var versionDir = repoDir.resolve(Utils.format(coordinate));
+	private int delete(Path repoDir, String groupId, String artifactId, String version) {
+		var coordinate = Coordinate.toString(groupId, artifactId, version);
+		var coordinateDir = repoDir.resolve(Coordinate.toPath(groupId, artifactId, version));
 		try {
-			FileUtils.deleteDirectory(versionDir.toFile());
+			FileUtils.deleteDirectory(coordinateDir.toFile());
 			System.out.println("Deleted " + coordinate);
 			return 1;
 		} catch (Exception e) {
 			System.err.println("Failed to delete " + coordinate);
-			logger.error("Failed to delete directory: {}", versionDir, e);
+			logger.error("Failed to delete directory: {}", coordinateDir, e);
 			return 0;
 		}
 	}

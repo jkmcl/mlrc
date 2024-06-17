@@ -16,9 +16,8 @@ class MainTests {
 
 	@BeforeAll
 	static void beforeAll() throws IOException {
-		var repoDir = Path.of(REPO_DIR);
-		FileUtils.deleteDirectory(repoDir.toFile());
-		Files.createDirectories(repoDir);
+		FileUtils.deleteDirectory(Path.of(REPO_DIR).toFile());
+
 		Files.createDirectories(Path.of(REPO_DIR, ".cache"));
 		Files.createDirectories(Path.of(REPO_DIR, "a", "b", "c", "1.0"));
 		Files.createDirectories(Path.of(REPO_DIR, "a", "b", "c", "1.1"));
@@ -30,15 +29,33 @@ class MainTests {
 	}
 
 	@Test
-	void testList() {
-		var main = new Main();
-		assertDoesNotThrow(() -> main.list(Path.of(REPO_DIR)));
+	void testMain() {
+		assertDoesNotThrow(() -> Main.main());
 	}
 
 	@Test
-	void testDelete() {
-		var main = new Main();
-		assertDoesNotThrow(() -> main.delete(Path.of(REPO_DIR), 3));
+	void testMain_list() {
+		assertDoesNotThrow(() -> Main.main("list", REPO_DIR));
+	}
+
+	@Test
+	void testMain_purge() {
+		assertDoesNotThrow(() -> Main.main("purge", "3", REPO_DIR));
+	}
+
+	@Test
+	void testMain_purge_negativeN() {
+		assertDoesNotThrow(() -> Main.main("purge", "0", REPO_DIR));
+	}
+
+	@Test
+	void testMain_purge_missingN() {
+		assertDoesNotThrow(() -> Main.main("purge", REPO_DIR));
+	}
+
+	@Test
+	void testMain_unknown() {
+		assertDoesNotThrow(() -> Main.main("unknown", "a", REPO_DIR));
 	}
 
 }

@@ -30,8 +30,7 @@ class RepoDirectoryVisitor extends SimpleFileVisitor<Path> {
 	public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 		try (var ds = Files.newDirectoryStream(dir, entry -> Files.isDirectory(entry, LinkOption.NOFOLLOW_LINKS))) {
 			if (!ds.iterator().hasNext()) {
-				var relativePath = repoDir.relativize(dir).toString();
-				var coordinate = Utils.parse(relativePath);
+				var coordinate = Coordinate.fromPath(repoDir.relativize(dir));
 				if (coordinate != null) {
 					mapBuilder.add(coordinate);
 				}
