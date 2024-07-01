@@ -13,24 +13,9 @@ import org.codehaus.plexus.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Main {
+public class Core {
 
-	private final Logger logger = LoggerFactory.getLogger(Main.class);
-
-	public static void printHelp() {
-		System.out.println("Usage: " + Main.class.getName() + " list REPO_DIR");
-		System.out.println("       " + Main.class.getName() + " purge n REPO_DIR");
-	}
-
-	public static void main(String... args) throws Exception {
-		if (args.length > 1 && args[0].equals("list")) {
-			new Main().list(Path.of(args[1]));
-		} else if (args.length > 2 && args[0].equals("purge") && Integer.parseInt(args[1]) > 0) {
-			new Main().purge(Path.of(args[2]), Integer.parseInt(args[1]));
-		} else {
-			printHelp();
-		}
-	}
+	private final Logger logger = LoggerFactory.getLogger(Core.class);
 
 	SortedMap<String, SortedMap<String, SortedSet<ComparableVersion>>> walkRepoFileTree(Path repoDir) throws IOException {
 		var visitor = new RepoDirectoryVisitor(repoDir);
@@ -39,6 +24,10 @@ public class Main {
 	}
 
 	public void list(Path repoDir) throws IOException {
+		list(repoDir, null, null);
+	}
+
+	public void list(Path repoDir, String groupId, String artifactId) throws IOException {
 		logger.info("Listing artifacts in repository directory: {}", repoDir);
 
 		var count = 0;
@@ -46,12 +35,18 @@ public class Main {
 		var lineSeparator = System.lineSeparator();
 
 		for (var groupArtifacts : walkRepoFileTree(repoDir).entrySet()) {
-			var groupId = groupArtifacts.getKey();
+			var currentGroupId = groupArtifacts.getKey();
+			if (groupId != null && !groupId.equals(currentGroupId)) {
+				continue;
+			}
 			for (var artifactVersions : groupArtifacts.getValue().entrySet()) {
-				var artifactId = artifactVersions.getKey();
+				var currentArtifactId = artifactVersions.getKey();
+				if (artifactId != null && !artifactId.equals(currentArtifactId)) {
+					continue;
+				}
 				for (var version : artifactVersions.getValue()) {
 					++count;
-					sb.append(Coordinate.toString(groupId, artifactId, version.toString())).append(lineSeparator);
+					sb.append(Coordinate.toString(currentGroupId, currentArtifactId, version.toString())).append(lineSeparator);
 				}
 			}
 		}
@@ -65,19 +60,30 @@ public class Main {
 	 * Purge old versions of each artifact, keeping only the most recent N version
 	 */
 	public void purge(Path repoDir, int numberToKeep) throws IOException {
+		purge(repoDir, numberToKeep, null, null);
+	}
+
+	public void purge(Path repoDir, int numberToKeep, String groupId, String artifactId) throws IOException {
 		logger.info("Deleting older artifacts in repository directory: {}", repoDir);
 
 		var count = 0;
 		for (var groupArtifacts : walkRepoFileTree(repoDir).entrySet()) {
-			var groupId = groupArtifacts.getKey();
+			var currentGroupId = groupArtifacts.getKey();
+			if (groupId != null && !groupId.equals(currentGroupId)) {
+				continue;
+			}
 			for (var artifactVersions : groupArtifacts.getValue().entrySet()) {
-				var artifactId = artifactVersions.getKey();
+				var currentArtifactId = artifactVersions.getKey();
+				if (artifactId != null && !artifactId.equals(currentArtifactId)) {
+					continue;
+				}
 				var versions = artifactVersions.getValue();
-				count += purge(repoDir, numberToKeep, groupId, artifactId, versions);
+				count += purge(repoDir, numberToKeep, currentGroupId, currentArtifactId, versions);
 			}
 		}
 		logger.info("Delete count: {}", count);
 	}
+
 
 	private int purge(Path repoDir, int numberToKeep, String groupId, String artifactId, SortedSet<ComparableVersion> versions) {
 		var totalNumber = versions.size();
